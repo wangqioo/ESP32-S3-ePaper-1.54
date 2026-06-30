@@ -1,0 +1,13 @@
+# ESP-IDF build outputs
+build/
+managed_components/
+dependencies.lock
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp

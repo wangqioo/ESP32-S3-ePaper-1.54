@@ -1,0 +1,26 @@
+idf_component_register(
+    SRCS 
+    "port_power.cpp"
+    "port_adc.cpp"
+    "port_display.cpp"
+    "port_lvgl.cpp"
+    "port_i2c.cpp"
+    "port_ft6336.cpp"
+    "port_sdcard.cpp"
+    "port_shtc3.cpp"
+    "port_codec.cpp"
+    PRIV_REQUIRES
+    driver
+    esp_adc
+    lvgl
+    fatfs 
+    sdmmc
+    esp_timer
+    codec_board
+    espressif__esp_codec_dev
+    REQUIRES
+    driver        
+    INCLUDE_DIRS
+    "./"
+    EMBED_FILES "canon.pcm"
+)
