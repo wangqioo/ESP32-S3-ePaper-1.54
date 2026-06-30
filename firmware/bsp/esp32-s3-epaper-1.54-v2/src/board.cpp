@@ -1,10 +1,13 @@
 #include "board.h"
 
+#include "board_audio.h"
 #include "board_buttons.h"
 #include "board_epaper.h"
 #include "board_i2c.h"
 #include "board_power.h"
 #include "board_sensors.h"
+#include "board_sdcard.h"
+#include "board_touch.h"
 #include "esp_check.h"
 
 static const char *TAG = "board";
@@ -30,15 +33,15 @@ esp_err_t board_init_sensors(void)
 
 esp_err_t board_init_audio(void)
 {
-    return ESP_ERR_NOT_SUPPORTED;
+    return board_audio_init();
 }
 
 esp_err_t board_init_sdcard(void)
 {
-    return ESP_ERR_NOT_SUPPORTED;
+    return board_sdcard_mount();
 }
 
 esp_err_t board_init_touch(void)
 {
-    return ESP_ERR_NOT_SUPPORTED;
+    return board_touch_init();
 }
