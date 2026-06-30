@@ -12,16 +12,20 @@
 static const char *TAG = "board_audio";
 static esp_codec_dev_handle_t s_playback = NULL;
 static esp_codec_dev_handle_t s_record = NULL;
+static bool s_playback_open = false;
+static bool s_record_open = false;
 static bool s_audio_open = false;
 
 static void board_audio_close_streams(void)
 {
-    if (s_record != NULL) {
+    if (s_record_open) {
         esp_codec_dev_close(s_record);
     }
-    if (s_playback != NULL && s_playback != s_record) {
+    if (s_playback_open) {
         esp_codec_dev_close(s_playback);
     }
+    s_record_open = false;
+    s_playback_open = false;
     s_audio_open = false;
 }
 
@@ -31,6 +35,9 @@ static void board_audio_cleanup_init_failure(void)
     deinit_codec();
     s_playback = NULL;
     s_record = NULL;
+    s_record_open = false;
+    s_playback_open = false;
+    s_audio_open = false;
     board_power_audio_off();
 }
 
@@ -50,13 +57,13 @@ static esp_err_t board_audio_open_streams(void)
                         ESP_FAIL,
                         TAG,
                         "open playback failed");
+    s_playback_open = true;
     if (esp_codec_dev_open(s_record, &sample_info) != ESP_CODEC_DEV_OK) {
-        esp_codec_dev_close(s_playback);
-        s_audio_open = false;
         ESP_LOGE(TAG, "open record failed");
         return ESP_FAIL;
     }
 
+    s_record_open = true;
     s_audio_open = true;
     return ESP_OK;
 }
@@ -80,7 +87,7 @@ esp_err_t board_audio_init(void)
     };
 
     if (init_codec(&codec_cfg) != 0) {
-        board_power_audio_off();
+        board_audio_cleanup_init_failure();
         ESP_LOGE(TAG, "codec init failed");
         return ESP_FAIL;
     }
