@@ -1,6 +1,7 @@
 #pragma once
 
 #include "driver/gpio.h"
+#include "driver/i2c.h"
 #include "driver/spi_master.h"
 
 #ifdef __cplusplus
