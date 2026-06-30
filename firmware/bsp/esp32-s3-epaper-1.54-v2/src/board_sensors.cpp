@@ -109,7 +109,7 @@ static esp_err_t rtc_init(void)
     }
 
     ESP_RETURN_ON_FALSE(board_i2c_get_bus() != NULL, ESP_ERR_INVALID_STATE, TAG, "i2c bus not initialized");
-    ESP_RETURN_ON_FALSE(s_rtc.begin(board_i2c_get_bus()), ESP_FAIL, TAG, "rtc init failed");
+    ESP_RETURN_ON_FALSE(s_rtc.begin(board_i2c_get_bus(), BOARD_RTC_I2C_ADDR), ESP_FAIL, TAG, "rtc init failed");
     s_rtc_initialized = true;
     return ESP_OK;
 }

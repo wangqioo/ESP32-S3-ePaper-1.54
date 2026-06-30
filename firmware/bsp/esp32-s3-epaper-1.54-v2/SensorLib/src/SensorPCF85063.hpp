@@ -82,7 +82,12 @@ public:
 #else
     bool begin(i2c_master_bus_handle_t handle)
     {
-        comm = std::make_unique<SensorCommI2C>(handle, PCF85063_SLAVE_ADDRESS);
+        return begin(handle, PCF85063_SLAVE_ADDRESS);
+    }
+
+    bool begin(i2c_master_bus_handle_t handle, uint8_t address)
+    {
+        comm = std::make_unique<SensorCommI2C>(handle, address);
         if (!comm) {
             return false;
         }
