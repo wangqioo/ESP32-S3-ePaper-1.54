@@ -1,5 +1,6 @@
 #include "board_sdcard.h"
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "board_pins.h"
@@ -22,7 +23,7 @@ esp_err_t board_sdcard_mount(void)
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
         .max_files = 5,
-        .allocation_unit_size = 16 * 1024 * 3,
+        .allocation_unit_size = 16 * 1024,
     };
 
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -57,11 +58,11 @@ esp_err_t board_sdcard_unmount(void)
     return err;
 }
 
-esp_err_t board_sdcard_read_file(const char *path, char *buffer, uint32_t *out_len)
+esp_err_t board_sdcard_read_file(const char *path, char *buffer, uint32_t buffer_len, uint32_t *out_len)
 {
     ESP_RETURN_ON_FALSE(path != NULL, ESP_ERR_INVALID_ARG, TAG, "path is null");
     ESP_RETURN_ON_FALSE(buffer != NULL, ESP_ERR_INVALID_ARG, TAG, "buffer is null");
-    ESP_RETURN_ON_FALSE(out_len != NULL, ESP_ERR_INVALID_ARG, TAG, "out_len is null");
+    ESP_RETURN_ON_FALSE(buffer_len > 0, ESP_ERR_INVALID_ARG, TAG, "buffer_len is zero");
     ESP_RETURN_ON_FALSE(s_card != NULL, ESP_ERR_INVALID_STATE, TAG, "card not mounted");
     ESP_RETURN_ON_ERROR(sdmmc_get_status(s_card), TAG, "card status failed");
 
@@ -79,6 +80,17 @@ esp_err_t board_sdcard_read_file(const char *path, char *buffer, uint32_t *out_l
         err = ESP_FAIL;
         goto cleanup;
     }
+    if ((unsigned long)file_len > UINT32_MAX) {
+        err = ESP_ERR_INVALID_SIZE;
+        goto cleanup;
+    }
+    if ((uint32_t)file_len > buffer_len) {
+        if (out_len != NULL) {
+            *out_len = (uint32_t)file_len;
+        }
+        err = ESP_ERR_INVALID_SIZE;
+        goto cleanup;
+    }
 
     if (fseek(file, 0, SEEK_SET) != 0) {
         err = ESP_FAIL;
@@ -86,12 +98,13 @@ esp_err_t board_sdcard_read_file(const char *path, char *buffer, uint32_t *out_l
     }
 
     size_t bytes_read = fread(buffer, 1, (size_t)file_len, file);
-    if (bytes_read != (size_t)file_len && ferror(file)) {
+    if (out_len != NULL) {
+        *out_len = (uint32_t)bytes_read;
+    }
+    if (bytes_read != (size_t)file_len) {
         err = ESP_FAIL;
         goto cleanup;
     }
-
-    *out_len = bytes_read;
 
 cleanup:
     fclose(file);

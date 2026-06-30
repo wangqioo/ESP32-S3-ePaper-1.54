@@ -7,11 +7,32 @@
 #include "codec_init.h"
 #include "esp_check.h"
 #include "esp_codec_dev.h"
+#include "esp_log.h"
 
 static const char *TAG = "board_audio";
 static esp_codec_dev_handle_t s_playback = NULL;
 static esp_codec_dev_handle_t s_record = NULL;
 static bool s_audio_open = false;
+
+static void board_audio_close_streams(void)
+{
+    if (s_record != NULL) {
+        esp_codec_dev_close(s_record);
+    }
+    if (s_playback != NULL && s_playback != s_record) {
+        esp_codec_dev_close(s_playback);
+    }
+    s_audio_open = false;
+}
+
+static void board_audio_cleanup_init_failure(void)
+{
+    board_audio_close_streams();
+    deinit_codec();
+    s_playback = NULL;
+    s_record = NULL;
+    board_power_audio_off();
+}
 
 static esp_err_t board_audio_open_streams(void)
 {
@@ -29,10 +50,12 @@ static esp_err_t board_audio_open_streams(void)
                         ESP_FAIL,
                         TAG,
                         "open playback failed");
-    ESP_RETURN_ON_FALSE(esp_codec_dev_open(s_record, &sample_info) == ESP_CODEC_DEV_OK,
-                        ESP_FAIL,
-                        TAG,
-                        "open record failed");
+    if (esp_codec_dev_open(s_record, &sample_info) != ESP_CODEC_DEV_OK) {
+        esp_codec_dev_close(s_playback);
+        s_audio_open = false;
+        ESP_LOGE(TAG, "open record failed");
+        return ESP_FAIL;
+    }
 
     s_audio_open = true;
     return ESP_OK;
@@ -56,23 +79,41 @@ esp_err_t board_audio_init(void)
         .reuse_dev = false,
     };
 
-    ESP_RETURN_ON_FALSE(init_codec(&codec_cfg) == 0, ESP_FAIL, TAG, "codec init failed");
+    if (init_codec(&codec_cfg) != 0) {
+        board_power_audio_off();
+        ESP_LOGE(TAG, "codec init failed");
+        return ESP_FAIL;
+    }
 
     s_playback = get_playback_handle();
     s_record = get_record_handle();
-    ESP_RETURN_ON_FALSE(s_playback != NULL, ESP_FAIL, TAG, "playback handle unavailable");
-    ESP_RETURN_ON_FALSE(s_record != NULL, ESP_FAIL, TAG, "record handle unavailable");
+    if (s_playback == NULL) {
+        board_audio_cleanup_init_failure();
+        ESP_LOGE(TAG, "playback handle unavailable");
+        return ESP_FAIL;
+    }
+    if (s_record == NULL) {
+        board_audio_cleanup_init_failure();
+        ESP_LOGE(TAG, "record handle unavailable");
+        return ESP_FAIL;
+    }
 
-    ESP_RETURN_ON_FALSE(esp_codec_dev_set_out_vol(s_playback, 100.0f) == ESP_CODEC_DEV_OK,
-                        ESP_FAIL,
-                        TAG,
-                        "set volume failed");
-    ESP_RETURN_ON_FALSE(esp_codec_dev_set_in_gain(s_record, 45.0f) == ESP_CODEC_DEV_OK,
-                        ESP_FAIL,
-                        TAG,
-                        "set gain failed");
+    if (esp_codec_dev_set_out_vol(s_playback, 100.0f) != ESP_CODEC_DEV_OK) {
+        board_audio_cleanup_init_failure();
+        ESP_LOGE(TAG, "set volume failed");
+        return ESP_FAIL;
+    }
+    if (esp_codec_dev_set_in_gain(s_record, 45.0f) != ESP_CODEC_DEV_OK) {
+        board_audio_cleanup_init_failure();
+        ESP_LOGE(TAG, "set gain failed");
+        return ESP_FAIL;
+    }
 
-    return board_audio_open_streams();
+    esp_err_t err = board_audio_open_streams();
+    if (err != ESP_OK) {
+        board_audio_cleanup_init_failure();
+    }
+    return err;
 }
 
 void board_audio_set_volume(uint8_t volume)

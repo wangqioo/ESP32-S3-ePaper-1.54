@@ -4,6 +4,7 @@
 #include "board_pins.h"
 #include "driver/gpio.h"
 #include "esp_check.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -38,10 +39,17 @@ esp_err_t board_touch_init(void)
 
     ESP_RETURN_ON_ERROR(board_i2c_init(), TAG, "i2c init failed");
     ESP_RETURN_ON_FALSE(board_i2c_get_bus() != NULL, ESP_ERR_INVALID_STATE, TAG, "i2c bus unavailable");
-    ESP_RETURN_ON_ERROR(board_i2c_register_device(BOARD_FT6336_I2C_ADDR, &s_touch_dev),
+    i2c_master_dev_handle_t touch_dev = NULL;
+    ESP_RETURN_ON_ERROR(board_i2c_register_device(BOARD_FT6336_I2C_ADDR, &touch_dev),
                         TAG,
                         "register touch failed");
-    ESP_RETURN_ON_ERROR(board_touch_reset(), TAG, "touch reset failed");
+    esp_err_t err = board_touch_reset();
+    if (err != ESP_OK) {
+        i2c_master_bus_rm_device(touch_dev);
+        ESP_LOGE(TAG, "touch reset failed");
+        return err;
+    }
+    s_touch_dev = touch_dev;
     return ESP_OK;
 }
 
