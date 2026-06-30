@@ -5,6 +5,7 @@ idf_component_register(
   "memo_storage.cpp"
   "memo_recorder.cpp"
   "memo_player.cpp"
+  "voice_ui.cpp"
   PRIV_REQUIRES
   port_bsp
   ui
