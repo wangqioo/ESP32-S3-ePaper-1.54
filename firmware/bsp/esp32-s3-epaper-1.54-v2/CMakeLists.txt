@@ -1,8 +1,13 @@
 idf_component_register(
     SRCS
         "src/board.cpp"
+        "src/board_power.cpp"
+        "src/board_i2c.c"
     INCLUDE_DIRS
         "include"
     REQUIRES
         driver
+        esp_driver_gpio
+        esp_driver_i2c
+        esp_hw_support
 )
