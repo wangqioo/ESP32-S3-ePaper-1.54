@@ -3,6 +3,7 @@ idf_component_register(
         "src/board.cpp"
         "src/board_power.cpp"
         "src/board_i2c.c"
+        "src/board_epaper.cpp"
     INCLUDE_DIRS
         "include"
     REQUIRES

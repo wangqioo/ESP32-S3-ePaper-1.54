@@ -1,5 +1,6 @@
 #include "board.h"
 
+#include "board_epaper.h"
 #include "board_i2c.h"
 #include "board_power.h"
 #include "esp_check.h"
@@ -16,7 +17,7 @@ esp_err_t board_init(void)
 
 esp_err_t board_init_display(void)
 {
-    return ESP_ERR_NOT_SUPPORTED;
+    return board_epaper_init();
 }
 
 esp_err_t board_init_sensors(void)
