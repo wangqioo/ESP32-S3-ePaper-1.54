@@ -24,6 +24,7 @@ idf_component_register(
         ${sensorlib_src_dirs}
     INCLUDE_DIRS
         "include"
+    PRIV_INCLUDE_DIRS
         ${sensorlib_include_dirs}
     REQUIRES
         driver

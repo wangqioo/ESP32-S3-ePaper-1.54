@@ -100,10 +100,15 @@ esp_err_t board_buttons_init(void)
         .skip_unhandled_events = false,
     };
 
-    ESP_RETURN_ON_ERROR(esp_timer_create(&timer_args, &s_button_timer), TAG, "button timer create failed");
-    ESP_RETURN_ON_ERROR(esp_timer_start_periodic(s_button_timer, 1000 * TICKS_INTERVAL),
-                        TAG,
-                        "button timer start failed");
+    esp_timer_handle_t timer = NULL;
+    ESP_RETURN_ON_ERROR(esp_timer_create(&timer_args, &timer), TAG, "button timer create failed");
+    esp_err_t err = esp_timer_start_periodic(timer, 1000 * TICKS_INTERVAL);
+    if (err != ESP_OK) {
+        esp_timer_delete(timer);
+        ESP_LOGE(TAG, "button timer start failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    s_button_timer = timer;
 
     button_start(&s_pwr_button);
     button_start(&s_boot_button);

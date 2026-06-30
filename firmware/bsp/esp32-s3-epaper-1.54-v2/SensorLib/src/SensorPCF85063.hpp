@@ -92,7 +92,12 @@ public:
             return false;
         }
         comm->init();
-        return initImpl();
+        if (!initImpl()) {
+            comm->deinit();
+            comm.reset();
+            return false;
+        }
+        return true;
     }
 #endif  //ESP_PLATFORM
 #endif  //ARDUINO
