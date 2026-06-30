@@ -665,18 +665,6 @@ int mount_sdcard(void)
         return ret;
     }
 
-#if defined CONFIG_IDF_TARGET_ESP32
-    gpio_config_t sdcard_pwr_pin_cfg = {
-        .pin_bit_mask = 1UL << GPIO_NUM_13,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&sdcard_pwr_pin_cfg);
-    gpio_set_level(GPIO_NUM_13, 0);
-#endif
-
 #if SOC_SDMMC_HOST_SUPPORTED
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,

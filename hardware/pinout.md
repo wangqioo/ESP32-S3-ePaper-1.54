@@ -74,11 +74,11 @@
 | I2S_SCLK | IO15 |
 | I2S_ASDOUT | IO16 |
 | I2S_LRCK | IO38 |
-| PA_EN | IO42 |
+| Audio_PWR / PA_EN | IO42 |
 | I2S_DSDIN | IO45 |
 | PA_CTRL | IO46 |
 
-> 待核对：原图中 IO18 的 Other 栏也标有 `PA_EN`，后续需要结合原理图或官方例程确认 IO18 与 IO42 的实际用途。
+> BSP 核对：官方 V2 ESP-IDF 例程将 `Audio_PWR_PIN` 定义为 IO42，将 `PWR_BUTTON_PIN` 定义为 IO18。用户提供的引脚图中 IO18 的 Other 栏标有 `PA_EN`，这里保留原图信息，但应用开发以官方例程和 BSP 映射为准。
 
 ### UART / USB
 
@@ -104,7 +104,8 @@
 | BOOT0 | IO0 |
 | BAT_ADC | IO4 |
 | BAT_Control | IO17 |
-| PA_EN | IO18 |
+| PWR_BUTTON | IO18 |
+| Audio_PWR / PA_EN | IO42 |
 
 ### 扩展输出
 
