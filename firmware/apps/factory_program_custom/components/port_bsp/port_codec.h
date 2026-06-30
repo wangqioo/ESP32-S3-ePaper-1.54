@@ -1,6 +1,9 @@
 #ifndef PORT_CODEC_H
 #define PORT_CODEC_H
 
+#include <esp_err.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
