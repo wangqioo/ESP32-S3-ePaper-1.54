@@ -54,6 +54,9 @@ esp_err_t board_i2c_write_read(i2c_master_dev_handle_t dev_handle,
                                uint8_t *read_buf,
                                uint8_t read_len)
 {
+    ESP_RETURN_ON_FALSE(dev_handle != NULL, ESP_ERR_INVALID_ARG, TAG, "device handle is null");
+    ESP_RETURN_ON_FALSE(write_buf != NULL || write_len == 0, ESP_ERR_INVALID_ARG, TAG, "write buffer is null");
+    ESP_RETURN_ON_FALSE(read_buf != NULL || read_len == 0, ESP_ERR_INVALID_ARG, TAG, "read buffer is null");
     return i2c_master_transmit_receive(dev_handle, write_buf, write_len, read_buf, read_len, -1);
 }
 
@@ -65,6 +68,8 @@ esp_err_t board_i2c_read_reg(i2c_master_dev_handle_t dev_handle, uint8_t reg, ui
 esp_err_t board_i2c_write_reg(i2c_master_dev_handle_t dev_handle, uint8_t reg, const uint8_t *buf, uint8_t len)
 {
     uint8_t write_buf[32];
+    ESP_RETURN_ON_FALSE(dev_handle != NULL, ESP_ERR_INVALID_ARG, TAG, "device handle is null");
+    ESP_RETURN_ON_FALSE(buf != NULL || len == 0, ESP_ERR_INVALID_ARG, TAG, "write buffer is null");
     ESP_RETURN_ON_FALSE(len + 1 <= sizeof(write_buf), ESP_ERR_INVALID_SIZE, TAG, "i2c write too large");
     write_buf[0] = reg;
     memcpy(&write_buf[1], buf, len);

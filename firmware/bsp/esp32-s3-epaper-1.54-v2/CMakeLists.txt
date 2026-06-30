@@ -9,5 +9,6 @@ idf_component_register(
         driver
         esp_driver_gpio
         esp_driver_i2c
+        esp_driver_spi
         esp_hw_support
 )
