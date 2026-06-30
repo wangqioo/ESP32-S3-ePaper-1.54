@@ -1,5 +1,7 @@
 idf_component_register(
-  SRCS "user_app.cpp"
+  SRCS
+  "user_app.cpp"
+  "memo_utils.cpp"
   PRIV_REQUIRES
   port_bsp
   ui
