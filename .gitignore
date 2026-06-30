@@ -11,3 +11,6 @@ dependencies.lock
 # Logs and temporary files
 *.log
 *.tmp
+
+# Local brainstorming/mockup companion output
+.superpowers/
