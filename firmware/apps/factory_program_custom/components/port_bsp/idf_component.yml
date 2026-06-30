@@ -1,0 +1,7 @@
+dependencies:
+  idf:
+    version: '>=4.1.0'
+  lvgl/lvgl: ^9.3.0
+  espressif/button: "*"
+  pedrominatel/shtc3: "^1.4.1"
+  waveshare/pcf85063a: "^1.1.1"
