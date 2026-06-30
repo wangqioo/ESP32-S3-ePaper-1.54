@@ -113,3 +113,49 @@ bool IsSupportedWavHeader(const WavHeader &header, const WavFormat &format) {
            header.bits_per_sample == format.bits_per_sample &&
            header.channels == format.channels;
 }
+
+int32_t ParseMemoSequence(const std::string &filename) {
+    constexpr const char *prefix = "MEMO_";
+    constexpr size_t prefix_len = 5;
+
+    if (filename.rfind(prefix, 0) != 0 || filename.size() < prefix_len + 4 + 4) {
+        return -1;
+    }
+
+    uint32_t sequence = 0;
+    for (size_t i = 0; i < 4; ++i) {
+        char c = filename[prefix_len + i];
+        if (c < '0' || c > '9') {
+            return -1;
+        }
+        sequence = sequence * 10 + static_cast<uint32_t>(c - '0');
+    }
+
+    std::string suffix = filename.substr(prefix_len + 4);
+    bool plain_suffix = suffix == ".wav";
+    bool time_suffix = suffix.size() == 9 &&
+                       suffix[0] == '_' &&
+                       suffix[5] == '.' &&
+                       suffix[6] == 'w' &&
+                       suffix[7] == 'a' &&
+                       suffix[8] == 'v';
+    if (time_suffix) {
+        for (size_t i = 1; i <= 4; ++i) {
+            if (suffix[i] < '0' || suffix[i] > '9') {
+                return -1;
+            }
+        }
+    }
+
+    return (plain_suffix || time_suffix) ? static_cast<int32_t>(sequence) : -1;
+}
+
+uint32_t NextMemoSequence(const std::vector<uint32_t> &sequences) {
+    uint32_t next = 1;
+    for (uint32_t sequence : sequences) {
+        if (sequence >= next) {
+            next = sequence + 1;
+        }
+    }
+    return next;
+}

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 struct __attribute__((packed)) WavHeader {
     char riff[4];
@@ -34,5 +35,7 @@ uint32_t ClampPage(uint32_t page, uint32_t page_count);
 uint32_t BytesToDurationSeconds(uint32_t data_bytes, const WavFormat &format);
 bool ReadWavHeader(FILE *file, WavHeader *header);
 bool IsSupportedWavHeader(const WavHeader &header, const WavFormat &format);
+int32_t ParseMemoSequence(const std::string &filename);
+uint32_t NextMemoSequence(const std::vector<uint32_t> &sequences);
 
 #endif

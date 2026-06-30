@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <vector>
 
 static void ExpectString(const char *actual, const char *expected) {
     assert(std::string(actual) == expected);
@@ -46,11 +47,20 @@ static void TestWavHeader() {
     assert(header.file_size == data_size + sizeof(WavHeader) - 8);
 }
 
+static void TestMemoSequenceHelpers() {
+    assert(ParseMemoSequence("MEMO_0007_0904.wav") == 7);
+    assert(ParseMemoSequence("MEMO_0007.wav") == 7);
+    assert(ParseMemoSequence("bad.wav") == -1);
+    assert(NextMemoSequence(std::vector<uint32_t>{1, 2, 4}) == 5);
+    assert(NextMemoSequence(std::vector<uint32_t>{}) == 1);
+}
+
 int main() {
     TestDurationFormatting();
     TestFilenameGeneration();
     TestPaging();
     TestWavHeader();
+    TestMemoSequenceHelpers();
     std::cout << "memo_utils tests passed\n";
     return 0;
 }
