@@ -7,6 +7,7 @@
 int main() {
     assert(AssistantStatusLabel(AssistantState::Idle) == std::string("Ready"));
     assert(AssistantStatusLabel(AssistantState::Recording) == std::string("Recording"));
+    assert(AssistantStatusLabel(AssistantState::Saving) == std::string("Saving"));
     assert(AssistantStatusLabel(AssistantState::Uploading) == std::string("Uploading"));
     assert(AssistantErrorLabel(AssistantError::WifiUnavailable) == std::string("Wi-Fi unavailable"));
 
@@ -26,6 +27,8 @@ int main() {
     ApplyAssistantEvent(session, AssistantEvent::BootDown);
     assert(session.state == AssistantState::Recording);
     ApplyAssistantEvent(session, AssistantEvent::BootUp);
+    assert(session.state == AssistantState::Saving);
+    ApplyAssistantEvent(session, AssistantEvent::UploadStarted);
     assert(session.state == AssistantState::Uploading);
     ApplyAssistantAnswer(session, "你好，我在。", "abc123");
     assert(session.state == AssistantState::Answer);

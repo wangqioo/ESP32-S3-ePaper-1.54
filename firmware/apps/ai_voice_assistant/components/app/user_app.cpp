@@ -200,6 +200,9 @@ void StopRecordingAndUpload() {
         return;
     }
 
+    ApplyAssistantEvent(session, AssistantEvent::BootUp);
+    RenderBusy(AssistantState::Saving);
+
     recording_worker_active = false;
     xEventGroupSetBits(recorder_events, BIT_REC_WORKER_STOP);
     xEventGroupWaitBits(recorder_events, BIT_REC_WORKER_STOPPED, pdTRUE, pdFALSE, portMAX_DELAY);
@@ -215,7 +218,7 @@ void StopRecordingAndUpload() {
 
     temp_wav_path = saved.path;
     ESP_LOGI(TAG, "record saved path=%s bytes=%u seconds=%u", saved.path.c_str(), static_cast<unsigned>(saved.data_bytes), static_cast<unsigned>(saved.duration_seconds));
-    ApplyAssistantEvent(session, AssistantEvent::BootUp);
+    ApplyAssistantEvent(session, AssistantEvent::UploadStarted);
     RenderBusy(AssistantState::Uploading);
     upload_worker_active = true;
     xTaskCreatePinnedToCore([](void *) {

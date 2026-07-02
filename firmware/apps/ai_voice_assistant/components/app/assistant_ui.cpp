@@ -6,6 +6,8 @@
 
 #include <cstdio>
 
+LV_FONT_DECLARE(lv_font_NotoSansSC_14);
+
 namespace {
 
 lv_obj_t *screen = nullptr;
@@ -70,11 +72,11 @@ void AssistantUi::ShowBusy(AssistantState state) {
 void AssistantUi::ShowAnswer(const std::string &answer, const std::string &request_id) {
     Clear();
     Label(screen, 8, 8, 184, 22, "ANSWER", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
-    auto lines = WrapAssistantText(answer, 18, 5);
-    int y = 40;
+    auto lines = WrapAssistantText(answer, 18, 6);
+    int y = 36;
     for (const auto &line : lines) {
-        Label(screen, 10, y, 180, 20, line.c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_LEFT);
-        y += 24;
+        Label(screen, 10, y, 180, 18, line.c_str(), &lv_font_NotoSansSC_14, LV_TEXT_ALIGN_LEFT);
+        y += 20;
     }
     std::string footer = request_id.empty() ? "PWR back" : ("PWR back #" + request_id.substr(0, 6));
     ButtonHint(screen, footer.c_str());
@@ -83,7 +85,7 @@ void AssistantUi::ShowAnswer(const std::string &answer, const std::string &reque
 void AssistantUi::ShowError(AssistantError error) {
     Clear();
     Label(screen, 8, 44, 184, 24, "ERROR", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
-    Label(screen, 8, 88, 184, 42, AssistantErrorLabel(error).c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    Label(screen, 8, 82, 184, 48, AssistantErrorLabel(error).c_str(), &lv_font_NotoSansSC_14, LV_TEXT_ALIGN_CENTER);
     ButtonHint(screen, "PWR back");
 }
 

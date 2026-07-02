@@ -117,6 +117,8 @@ std::string AssistantStatusLabel(AssistantState state) {
             return "Ready";
         case AssistantState::Recording:
             return "Recording";
+        case AssistantState::Saving:
+            return "Saving";
         case AssistantState::Uploading:
             return "Uploading";
         case AssistantState::Thinking:
@@ -175,7 +177,7 @@ void ApplyAssistantEvent(AssistantSession &session, AssistantEvent event) {
             break;
         case AssistantEvent::BootUp:
             if (session.state == AssistantState::Recording) {
-                session.state = AssistantState::Uploading;
+                session.state = AssistantState::Saving;
             }
             break;
         case AssistantEvent::UploadStarted:
@@ -194,7 +196,7 @@ void ApplyAssistantEvent(AssistantSession &session, AssistantEvent event) {
             }
             break;
         case AssistantEvent::PowerLong:
-            if (session.state == AssistantState::Recording || session.state == AssistantState::Uploading || session.state == AssistantState::Thinking) {
+            if (session.state == AssistantState::Recording || session.state == AssistantState::Saving || session.state == AssistantState::Uploading || session.state == AssistantState::Thinking) {
                 session.error = AssistantError::Busy;
             } else {
                 session.state = AssistantState::ShuttingDown;

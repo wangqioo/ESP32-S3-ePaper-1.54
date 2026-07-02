@@ -2,18 +2,62 @@
 import argparse
 import json
 import os
+import ssl
+import wave
 import time
 import urllib.error
 import urllib.request
 import uuid
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 MAX_WAV_BYTES = 2 * 1024 * 1024
+DEVICE_TEXT_FALLBACK = "我没有得到可显示的回答。"
 
 
 def json_bytes(body):
     return json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def is_device_unsupported_char(ch):
+    code = ord(ch)
+    return (
+        0x1F000 <= code <= 0x1FAFF
+        or code in (0x00A9, 0x00AE, 0x2122, 0x2139)
+        or 0x2190 <= code <= 0x21FF
+        or 0x2300 <= code <= 0x23FF
+        or 0x2460 <= code <= 0x24FF
+        or 0x2600 <= code <= 0x27BF
+        or 0x2934 <= code <= 0x2935
+        or 0x2B00 <= code <= 0x2BFF
+        or 0x3030 <= code <= 0x303D
+        or 0x3297 <= code <= 0x3299
+        or 0xFE00 <= code <= 0xFE0F
+        or 0xE0100 <= code <= 0xE01EF
+        or 0x200D == code
+        or 0x20E3 == code
+    )
+
+
+def device_text(text):
+    kept = []
+    for ch in text:
+        code = ord(ch)
+        if 0xFE00 <= code <= 0xFE0F:
+            if kept and is_device_unsupported_char(kept[-1]):
+                kept.pop()
+            continue
+        if code == 0x20E3:
+            if kept:
+                kept.pop()
+            continue
+        if is_device_unsupported_char(ch):
+            continue
+        kept.append(ch)
+    cleaned = "".join(kept)
+    cleaned = " ".join(cleaned.split())
+    return cleaned.strip() or DEVICE_TEXT_FALLBACK
 
 
 class AssistantProxyHandler(BaseHTTPRequestHandler):
@@ -66,7 +110,7 @@ class AssistantProxyHandler(BaseHTTPRequestHandler):
 
         elapsed_ms = int((time.monotonic() - started) * 1000)
         print(f"request_id={request_id} mode={self.server.mode} bytes={length} elapsed_ms={elapsed_ms}")
-        self.send_json(200, {"ok": True, "text": text[:180], "request_id": request_id})
+        self.send_json(200, {"ok": True, "text": device_text(text)[:180], "request_id": request_id})
 
 
 def glm_api_key():
@@ -88,7 +132,8 @@ def build_answer_prompt(transcript):
     return (
         "You are a concise assistant for a 200x200 e-paper device. "
         "Answer in the same language as the user. Keep the answer under 80 Chinese characters "
-        "or under 120 English characters.\n\nUser said:\n" + transcript.strip()
+        "or under 120 English characters. Do not use emoji, emoticons, stickers, or decorative symbols.\n\n"
+        "User said:\n" + transcript.strip()
     )
 
 
@@ -110,15 +155,62 @@ def multipart_body(fields, files):
     return boundary, b"".join(chunks)
 
 
+def ensure_mono_wav(audio):
+    try:
+        with wave.open(BytesIO(audio), "rb") as src:
+            channels = src.getnchannels()
+            sample_width = src.getsampwidth()
+            frame_rate = src.getframerate()
+            frames = src.readframes(src.getnframes())
+    except wave.Error:
+        return audio
+
+    if channels == 1:
+        return audio
+    if channels < 1 or sample_width != 2:
+        return audio
+
+    mono = bytearray()
+    frame_size = channels * sample_width
+    for offset in range(0, len(frames) - frame_size + 1, frame_size):
+        total = 0
+        for channel in range(channels):
+            start = offset + channel * sample_width
+            total += int.from_bytes(frames[start:start + sample_width], "little", signed=True)
+        sample = max(-32768, min(32767, round(total / channels)))
+        mono.extend(int(sample).to_bytes(sample_width, "little", signed=True))
+
+    out = BytesIO()
+    with wave.open(out, "wb") as dst:
+        dst.setnchannels(1)
+        dst.setsampwidth(sample_width)
+        dst.setframerate(frame_rate)
+        dst.writeframes(bytes(mono))
+    return out.getvalue()
+
+
+def build_ssl_context():
+    try:
+        import certifi
+    except ImportError as exc:
+        raise RuntimeError("certifi is required for GLM HTTPS requests: pip install certifi") from exc
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.check_hostname = True
+    ctx.load_verify_locations(cafile=certifi.where())
+    return ctx
+
+
 def post_json(url, body):
     data = json.dumps(body).encode("utf-8")
     headers = {"Content-Type": "application/json", **glm_headers()}
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=45) as resp:
+    with urllib.request.urlopen(req, timeout=45, context=build_ssl_context()) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
 def build_glm_transcription_body(audio):
+    audio = ensure_mono_wav(audio)
     boundary, body = multipart_body(
         {"model": os.environ.get("GLM_TRANSCRIBE_MODEL", "glm-asr-2512"), "stream": "false"},
         [("file", "assistant.wav", "audio/wav", audio)],
@@ -130,7 +222,7 @@ def transcribe_wav(audio):
     boundary, body = build_glm_transcription_body(audio)
     headers = {"Content-Type": f"multipart/form-data; boundary={boundary}", **glm_headers()}
     req = urllib.request.Request("https://open.bigmodel.cn/api/paas/v4/audio/transcriptions", data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=60, context=build_ssl_context()) as resp:
         result = json.loads(resp.read().decode("utf-8"))
     text = result.get("text", "").strip()
     if not text:
@@ -142,7 +234,7 @@ def answer_text(transcript):
     body = {
         "model": os.environ.get("GLM_TEXT_MODEL", os.environ.get("GLM_MODEL", "glm-4-flash")),
         "messages": [
-            {"role": "system", "content": "You are a concise assistant for a 200x200 e-paper device. Answer in the same language as the user. Keep the answer under 80 Chinese characters or under 120 English characters."},
+            {"role": "system", "content": "You are a concise assistant for a 200x200 e-paper device. Answer in the same language as the user. Keep the answer under 80 Chinese characters or under 120 English characters. Do not use emoji, emoticons, stickers, or decorative symbols."},
             {"role": "user", "content": transcript.strip()},
         ],
         "temperature": 0.2,
@@ -154,7 +246,7 @@ def answer_text(transcript):
     text = (message.get("content") or "").strip()
     if not text:
         raise RuntimeError("empty answer")
-    return text
+    return device_text(text)
 
 
 def ask_glm(audio, request_id):

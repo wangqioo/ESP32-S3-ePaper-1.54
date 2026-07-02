@@ -6,6 +6,7 @@
 enum class AssistantState {
     Idle,
     Recording,
+    Saving,
     Uploading,
     Thinking,
     Answer,
