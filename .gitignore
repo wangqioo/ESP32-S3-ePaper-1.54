@@ -11,6 +11,8 @@ dependencies.lock
 # Logs and temporary files
 *.log
 *.tmp
+__pycache__/
+*.pyc
 
 # Local brainstorming/mockup companion output
 .superpowers/
