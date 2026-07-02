@@ -60,19 +60,27 @@ class AssistantProxyHandler(BaseHTTPRequestHandler):
             return
 
         if self.server.mode == "mock":
-            text = "Mock answer: upload works. OpenAI mode can be enabled next."
+            text = "Mock answer: upload works. GLM mode can be enabled next."
         else:
-            text = ask_openai(audio, request_id)
+            text = ask_glm(audio, request_id)
 
         elapsed_ms = int((time.monotonic() - started) * 1000)
         print(f"request_id={request_id} mode={self.server.mode} bytes={length} elapsed_ms={elapsed_ms}")
         self.send_json(200, {"ok": True, "text": text[:180], "request_id": request_id})
 
 
-def openai_headers():
-    key = os.environ.get("OPENAI_API_KEY", "")
+def glm_api_key():
+    key = os.environ.get("GLM_API_KEY") or os.environ.get("ZHIPUAI_API_KEY", "")
+    key = key.strip()
+    if key.startswith("GLM:"):
+        key = key[4:].strip()
     if not key:
-        raise RuntimeError("OPENAI_API_KEY is required")
+        raise RuntimeError("GLM_API_KEY is required")
+    return key
+
+
+def glm_headers():
+    key = glm_api_key()
     return {"Authorization": f"Bearer {key}"}
 
 
@@ -104,19 +112,24 @@ def multipart_body(fields, files):
 
 def post_json(url, body):
     data = json.dumps(body).encode("utf-8")
-    headers = {"Content-Type": "application/json", **openai_headers()}
+    headers = {"Content-Type": "application/json", **glm_headers()}
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=45) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def transcribe_wav(audio):
+def build_glm_transcription_body(audio):
     boundary, body = multipart_body(
-        {"model": os.environ.get("OPENAI_TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe")},
+        {"model": os.environ.get("GLM_TRANSCRIBE_MODEL", "glm-asr-2512"), "stream": "false"},
         [("file", "assistant.wav", "audio/wav", audio)],
     )
-    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}", **openai_headers()}
-    req = urllib.request.Request("https://api.openai.com/v1/audio/transcriptions", data=body, headers=headers, method="POST")
+    return boundary, body
+
+
+def transcribe_wav(audio):
+    boundary, body = build_glm_transcription_body(audio)
+    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}", **glm_headers()}
+    req = urllib.request.Request("https://open.bigmodel.cn/api/paas/v4/audio/transcriptions", data=body, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=60) as resp:
         result = json.loads(resp.read().decode("utf-8"))
     text = result.get("text", "").strip()
@@ -127,29 +140,36 @@ def transcribe_wav(audio):
 
 def answer_text(transcript):
     body = {
-        "model": os.environ.get("OPENAI_TEXT_MODEL", "gpt-5-mini"),
-        "input": build_answer_prompt(transcript),
+        "model": os.environ.get("GLM_TEXT_MODEL", os.environ.get("GLM_MODEL", "glm-4-flash")),
+        "messages": [
+            {"role": "system", "content": "You are a concise assistant for a 200x200 e-paper device. Answer in the same language as the user. Keep the answer under 80 Chinese characters or under 120 English characters."},
+            {"role": "user", "content": transcript.strip()},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 120,
     }
-    result = post_json("https://api.openai.com/v1/responses", body)
-    text = result.get("output_text", "").strip()
+    result = post_json("https://open.bigmodel.cn/api/paas/v4/chat/completions", body)
+    choices = result.get("choices") or []
+    message = choices[0].get("message", {}) if choices else {}
+    text = (message.get("content") or "").strip()
     if not text:
         raise RuntimeError("empty answer")
     return text
 
 
-def ask_openai(audio, request_id):
+def ask_glm(audio, request_id):
     try:
         transcript = transcribe_wav(audio)
         print(f"request_id={request_id} transcript_chars={len(transcript)}")
         return answer_text(transcript)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
-        raise RuntimeError(f"openai_http_{exc.code}:{detail}") from exc
+        raise RuntimeError(f"glm_http_{exc.code}:{detail}") from exc
 
 
 def create_server(host, port, mode):
-    if mode == "openai" and not os.environ.get("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is required for openai mode")
+    if mode == "glm":
+        glm_api_key()
     httpd = ThreadingHTTPServer((host, port), AssistantProxyHandler)
     httpd.mode = mode
     return httpd
@@ -159,7 +179,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--mode", choices=("mock", "openai"), default=os.environ.get("AI_PROXY_MODE", "mock"))
+    parser.add_argument("--mode", choices=("mock", "glm"), default=os.environ.get("AI_PROXY_MODE", "mock"))
     args = parser.parse_args()
     httpd = create_server(args.host, args.port, args.mode)
     print(f"AI voice proxy listening on http://{args.host}:{args.port} mode={args.mode}")

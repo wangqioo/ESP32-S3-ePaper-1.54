@@ -71,27 +71,34 @@ class ProxyContractTests(unittest.TestCase):
         self.assertEqual(body["ok"], False)
         self.assertEqual(body["error"], "not_wav")
 
-    def test_openai_mode_requires_api_key(self):
-        old_key = os.environ.pop("OPENAI_API_KEY", None)
+    def test_glm_mode_requires_api_key(self):
+        old_key = os.environ.pop("GLM_API_KEY", None)
         try:
             with self.assertRaises(RuntimeError):
-                server.create_server("127.0.0.1", 0, mode="openai")
+                server.create_server("127.0.0.1", 0, mode="glm")
         finally:
             if old_key is not None:
-                os.environ["OPENAI_API_KEY"] = old_key
+                os.environ["GLM_API_KEY"] = old_key
 
 
-class OpenAiBuilderTests(unittest.TestCase):
-    def test_openai_headers_use_environment_key(self):
-        old_key = os.environ.get("OPENAI_API_KEY")
-        os.environ["OPENAI_API_KEY"] = "test-key"
+class GlmBuilderTests(unittest.TestCase):
+    def test_glm_headers_use_environment_key_and_strip_prefix(self):
+        old_key = os.environ.get("GLM_API_KEY")
+        os.environ["GLM_API_KEY"] = "GLM:test-key"
         try:
-            self.assertEqual(server.openai_headers()["Authorization"], "Bearer test-key")
+            self.assertEqual(server.glm_headers()["Authorization"], "Bearer test-key")
         finally:
             if old_key is None:
-                os.environ.pop("OPENAI_API_KEY", None)
+                os.environ.pop("GLM_API_KEY", None)
             else:
-                os.environ["OPENAI_API_KEY"] = old_key
+                os.environ["GLM_API_KEY"] = old_key
+
+    def test_glm_transcription_request_uses_voice_keyboard_defaults(self):
+        boundary, body = server.build_glm_transcription_body(b"RIFF....WAVEfmt ")
+        self.assertIn("multipart/form-data", f"multipart/form-data; boundary={boundary}")
+        self.assertIn(b'form-data; name="model"', body)
+        self.assertIn(b"glm-asr-2512", body)
+        self.assertIn(b'filename="assistant.wav"', body)
 
     def test_answer_prompt_is_short_screen_prompt(self):
         prompt = server.build_answer_prompt("上海今天冷吗")

@@ -40,13 +40,14 @@ Start the local proxy first:
 python3 tools/ai_proxy/server.py --host 0.0.0.0 --port 8787 --mode mock
 ```
 
-OpenAI mode runs only on the Mac proxy:
+GLM mode runs only on the Mac proxy:
 
 ```bash
-OPENAI_API_KEY=... python3 tools/ai_proxy/server.py --host 0.0.0.0 --port 8787 --mode openai
+GLM_API_KEY=... python3 tools/ai_proxy/server.py --host 0.0.0.0 --port 8787 --mode glm
 ```
 
-The firmware never contains API keys.
+The firmware never contains API keys. The proxy defaults match Voice Keyboard:
+`glm-asr-2512` for speech-to-text and `glm-4-flash` for answers.
 
 ## Build
 
