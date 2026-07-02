@@ -81,5 +81,24 @@ class ProxyContractTests(unittest.TestCase):
                 os.environ["OPENAI_API_KEY"] = old_key
 
 
+class OpenAiBuilderTests(unittest.TestCase):
+    def test_openai_headers_use_environment_key(self):
+        old_key = os.environ.get("OPENAI_API_KEY")
+        os.environ["OPENAI_API_KEY"] = "test-key"
+        try:
+            self.assertEqual(server.openai_headers()["Authorization"], "Bearer test-key")
+        finally:
+            if old_key is None:
+                os.environ.pop("OPENAI_API_KEY", None)
+            else:
+                os.environ["OPENAI_API_KEY"] = old_key
+
+    def test_answer_prompt_is_short_screen_prompt(self):
+        prompt = server.build_answer_prompt("上海今天冷吗")
+        self.assertIn("200x200", prompt)
+        self.assertIn("上海今天冷吗", prompt)
+        self.assertLess(len(prompt), 260)
+
+
 if __name__ == "__main__":
     unittest.main()
