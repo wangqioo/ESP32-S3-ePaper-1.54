@@ -10,15 +10,27 @@ During recording or upload, shutdown is rejected so the WAV file is not corrupte
 
 ## Configuration
 
-Edit `components/app/assistant_config.h` locally:
+For local builds, create
+`components/app/assistant_config_local.h`:
+
+```cpp
+#pragma once
+
+#define ASSISTANT_WIFI_SSID "your-wifi"
+#define ASSISTANT_WIFI_PASSWORD "your-password"
+#define ASSISTANT_PROXY_HOST "192.168.x.x"
+```
+
+The public defaults live in `components/app/assistant_config.h`:
 
 - `kWifiSsid`
 - `kWifiPassword`
 - `kProxyHost`
 - `kProxyPort`
 
-The public repository keeps these values empty. Empty Wi-Fi credentials mean the
-device shows offline/not-configured status instead of crashing.
+The public repository keeps the local override ignored by git. Empty Wi-Fi
+credentials mean the device shows offline/not-configured status instead of
+crashing.
 
 ## Proxy
 

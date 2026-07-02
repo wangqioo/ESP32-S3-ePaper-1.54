@@ -67,6 +67,8 @@ esp_err_t recorder_error = ESP_OK;
 esp_err_t upload_error = ESP_OK;
 std::string temp_wav_path;
 uint32_t last_record_elapsed = UINT32_MAX;
+bool boot_poll_initialized = false;
+bool boot_poll_down = false;
 
 bool StorageReady() {
     return sd_ready || flash_ready;
@@ -122,17 +124,41 @@ void ScanInitialPowerButtonRelease() {
 
 void InitializeButtons() {
     boot_button->OnPressDown([]() {
+        ESP_EARLY_LOGI(TAG, "BOOT down");
         xEventGroupSetBits(app_events, BIT_BOOT_DOWN);
     });
     boot_button->OnPressUp([]() {
+        ESP_EARLY_LOGI(TAG, "BOOT up");
         xEventGroupSetBits(app_events, BIT_BOOT_UP);
     });
     power_button->OnLongPress([]() {
+        ESP_EARLY_LOGI(TAG, "PWR long");
         xEventGroupSetBits(app_events, BIT_PWR_LONG);
     });
     power_button->OnPressUp([]() {
+        ESP_EARLY_LOGI(TAG, "PWR up");
         xEventGroupSetBits(app_events, BIT_PWR_UP);
     });
+}
+
+void PollBootButton() {
+    bool down = gpio_get_level(BOOT_BUTTON_PIN) == 0;
+    if (!boot_poll_initialized) {
+        boot_poll_initialized = true;
+        boot_poll_down = down;
+        return;
+    }
+    if (down == boot_poll_down) {
+        return;
+    }
+    boot_poll_down = down;
+    if (down) {
+        ESP_LOGI(TAG, "BOOT down poll");
+        xEventGroupSetBits(app_events, BIT_BOOT_DOWN);
+    } else {
+        ESP_LOGI(TAG, "BOOT up poll");
+        xEventGroupSetBits(app_events, BIT_BOOT_UP);
+    }
 }
 
 std::string BuildTempWavPath() {
@@ -144,6 +170,7 @@ void StartRecording() {
         return;
     }
     if (!StorageReady()) {
+        ESP_LOGW(TAG, "record rejected: no storage");
         ApplyAssistantError(session, AssistantError::StorageFailed);
         RenderError(session.error);
         return;
@@ -153,6 +180,7 @@ void StartRecording() {
     unlink(temp_wav_path.c_str());
     ApplyAssistantEvent(session, AssistantEvent::BootDown);
     last_record_elapsed = UINT32_MAX;
+    ESP_LOGI(TAG, "start recording path=%s", temp_wav_path.c_str());
 
     esp_err_t ret = recorder.Start(temp_wav_path.c_str(), wav_format);
     if (ret != ESP_OK) {
@@ -186,12 +214,19 @@ void StopRecordingAndUpload() {
     }
 
     temp_wav_path = saved.path;
+    ESP_LOGI(TAG, "record saved path=%s bytes=%u seconds=%u", saved.path.c_str(), static_cast<unsigned>(saved.data_bytes), static_cast<unsigned>(saved.duration_seconds));
     ApplyAssistantEvent(session, AssistantEvent::BootUp);
     RenderBusy(AssistantState::Uploading);
     upload_worker_active = true;
     xTaskCreatePinnedToCore([](void *) {
+        ESP_LOGI(TAG, "upload start path=%s", temp_wav_path.c_str());
         upload_response = AssistantResponse{};
         upload_error = AssistantUploadWav(temp_wav_path.c_str(), &upload_response);
+        ESP_LOGI(TAG, "upload done ret=%s ok=%d text_len=%u error=%d",
+                 esp_err_to_name(upload_error),
+                 upload_response.ok,
+                 static_cast<unsigned>(upload_response.text.size()),
+                 static_cast<int>(upload_response.error));
         xEventGroupSetBits(app_events, upload_error == ESP_OK ? BIT_UPLOAD_DONE : BIT_UPLOAD_ERROR);
         upload_worker_active = false;
         vTaskDelete(nullptr);
@@ -234,12 +269,13 @@ void AppLoopTask(void *) {
     RenderHome();
 
     for (;;) {
+        PollBootButton();
         EventBits_t events = xEventGroupWaitBits(
             app_events,
             BIT_BOOT_DOWN | BIT_BOOT_UP | BIT_PWR_LONG | BIT_PWR_UP | BIT_RECORD_ERROR | BIT_UPLOAD_DONE | BIT_UPLOAD_ERROR,
             pdTRUE,
             pdFALSE,
-            pdMS_TO_TICKS(recording_worker_active ? 100 : 500));
+            pdMS_TO_TICKS(50));
 
         if (events & BIT_PWR_LONG) {
             if (power_button_released) {

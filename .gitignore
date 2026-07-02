@@ -9,6 +9,9 @@ sdkconfig
 .idea/
 .vscode/
 
+# Local firmware credentials and network endpoints
+assistant_config_local.h
+
 # Logs and temporary files
 *.log
 *.tmp
