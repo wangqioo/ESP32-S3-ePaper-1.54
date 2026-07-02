@@ -1,0 +1,28 @@
+idf_component_register(
+    SRCS
+        "user_app.cpp"
+        "assistant_model.cpp"
+        "assistant_client.cpp"
+        "assistant_ui.cpp"
+        "memo_utils.cpp"
+        "memo_storage.cpp"
+        "memo_recorder.cpp"
+        "audio_loop_policy.cpp"
+        "power_sleep_policy.cpp"
+    PRIV_REQUIRES
+        port_bsp
+        ui
+        driver
+        esp_hw_support
+        esp_timer
+        esp_wifi
+        esp_http_client
+        esp_netif
+        esp_event
+        json
+        my_button
+        codec_board
+        nvs_flash
+        waveshare__pcf85063a
+    REQUIRES
+    INCLUDE_DIRS ".")

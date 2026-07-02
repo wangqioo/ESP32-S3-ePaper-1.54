@@ -1,0 +1,9 @@
+# support in, out, in_out type
+# support i2c_port, i2s_port settings
+# support pa_gain, i2c_addr setting
+
+
+Board: S3_ePaper_1_54
+i2c: {sda: 47, scl: 48}
+i2s: {mclk: 14, bclk: 15, ws: 38, din: 16, dout: 45}
+in_out: {codec: ES8311, pa: 46, pa_gain: 6, use_mclk: 1}
