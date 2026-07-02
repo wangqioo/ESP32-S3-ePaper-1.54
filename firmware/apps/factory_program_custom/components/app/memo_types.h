@@ -16,13 +16,18 @@ struct MemoMetadata {
     std::string display_time;
     uint32_t duration_seconds = 0;
     uint32_t data_bytes = 0;
+    bool starred = false;
 };
 
 enum class VoiceAppState {
     List,
     Recording,
+    Saving,
     Detail,
     Playing,
+    DeleteConfirm,
+    Settings,
+    ClearAllConfirm,
     Error,
     Shutdown,
 };
@@ -33,6 +38,11 @@ enum class VoiceUiActionType {
     PreviousPage,
     SelectRow,
     PlayStop,
+    Delete,
+    Star,
+    ConfirmDelete,
+    ConfirmClearAll,
+    Cancel,
     Back,
 };
 

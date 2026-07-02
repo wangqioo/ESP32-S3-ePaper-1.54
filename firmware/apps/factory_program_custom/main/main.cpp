@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include <nvs_flash.h>
 #include "lvgl.h"
 #include "port_display.h"
 #include "port_lvgl.h"
@@ -26,6 +27,12 @@ static void Lvgl_flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t *
 }
 
 extern "C" void app_main(void) {
+    esp_err_t nvs_ret = nvs_flash_init();
+    if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_ret);
 	UserApp_Init();
     PortLvgl_Start_Init();
     Lvgl_PortInit(Lvgl_flush_cb);

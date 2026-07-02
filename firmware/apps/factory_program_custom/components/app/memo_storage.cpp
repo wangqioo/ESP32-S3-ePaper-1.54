@@ -1,7 +1,6 @@
 #include "memo_storage.h"
 
 #include "memo_utils.h"
-#include "port_sdcard.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -14,11 +13,11 @@
 MemoStorage::MemoStorage(std::string base_dir) : base_dir_(std::move(base_dir)) {
 }
 
-esp_err_t MemoStorage::Init() {
-    if (card == nullptr) {
-        return ESP_ERR_NOT_FOUND;
-    }
+void MemoStorage::SetBaseDir(std::string base_dir) {
+    base_dir_ = std::move(base_dir);
+}
 
+esp_err_t MemoStorage::Init() {
     struct stat st = {};
     if (stat(base_dir_.c_str(), &st) == 0) {
         return S_ISDIR(st.st_mode) ? ESP_OK : ESP_ERR_INVALID_STATE;
@@ -33,9 +32,6 @@ esp_err_t MemoStorage::Init() {
 
 esp_err_t MemoStorage::Scan(std::vector<MemoMetadata> &out, const WavFormat &format) {
     out.clear();
-    if (card == nullptr) {
-        return ESP_ERR_NOT_FOUND;
-    }
 
     DIR *dir = opendir(base_dir_.c_str());
     if (dir == nullptr) {
@@ -100,10 +96,16 @@ std::string MemoStorage::BuildPathForSequence(uint32_t sequence, bool has_time, 
     return BuildMemoFilename(base_dir_, sequence, has_time, hour, minute);
 }
 
-void MemoStorage::RemoveFile(const char *path) const {
-    if (path != nullptr) {
-        unlink(path);
+esp_err_t MemoStorage::RemoveFile(const char *path) const {
+    if (path == nullptr || path[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
     }
+
+    if (unlink(path) == 0) {
+        return ESP_OK;
+    }
+
+    return errno == ENOENT ? ESP_ERR_NOT_FOUND : ESP_FAIL;
 }
 
 const std::string &MemoStorage::BaseDir() const {

@@ -37,5 +37,6 @@ bool ReadWavHeader(FILE *file, WavHeader *header);
 bool IsSupportedWavHeader(const WavHeader &header, const WavFormat &format);
 int32_t ParseMemoSequence(const std::string &filename);
 uint32_t NextMemoSequence(const std::vector<uint32_t> &sequences);
+int32_t FindMemoIndexByPath(const std::vector<MemoMetadata> &memos, const std::string &path);
 
 #endif

@@ -159,3 +159,12 @@ uint32_t NextMemoSequence(const std::vector<uint32_t> &sequences) {
     }
     return next;
 }
+
+int32_t FindMemoIndexByPath(const std::vector<MemoMetadata> &memos, const std::string &path) {
+    for (size_t i = 0; i < memos.size(); ++i) {
+        if (memos[i].path == path) {
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -1;
+}

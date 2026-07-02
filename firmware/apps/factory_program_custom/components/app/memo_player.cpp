@@ -59,6 +59,15 @@ esp_err_t MemoPlayer::PlayChunk() {
         return ESP_OK;
     }
 
+    size_t frame_bytes = (format_.channels * format_.bits_per_sample) / 8;
+    if (frame_bytes > 0) {
+        read -= read % frame_bytes;
+    }
+    if (read == 0) {
+        Stop();
+        return ESP_OK;
+    }
+
     esp_err_t ret = Codec_PlaybackData(buffer_, read);
     if (ret != ESP_OK) {
         Stop();

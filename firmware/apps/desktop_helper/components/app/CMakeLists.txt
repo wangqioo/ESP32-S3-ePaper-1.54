@@ -1,0 +1,23 @@
+idf_component_register(
+    SRCS
+    "desktop_model.cpp"
+    "desktop_cache.cpp"
+    "desktop_ui.cpp"
+    "desktop_sleep.cpp"
+    "weather_client.cpp"
+    "user_app.cpp"
+    PRIV_REQUIRES
+    port_bsp
+    driver
+    esp_hw_support
+    esp_timer
+    esp_wifi
+    esp_http_client
+    esp_netif
+    esp_event
+    nvs_flash
+    json
+    lvgl__lvgl
+    waveshare__pcf85063a
+    REQUIRES
+    INCLUDE_DIRS ".")

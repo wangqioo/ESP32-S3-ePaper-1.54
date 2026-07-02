@@ -12,11 +12,12 @@ class MemoStorage {
 public:
     explicit MemoStorage(std::string base_dir = "/sdcard/memos");
 
+    void SetBaseDir(std::string base_dir);
     esp_err_t Init();
     esp_err_t Scan(std::vector<MemoMetadata> &out, const WavFormat &format);
     uint32_t NextSequence(const std::vector<MemoMetadata> &memos) const;
     std::string BuildPathForSequence(uint32_t sequence, bool has_time, uint8_t hour, uint8_t minute) const;
-    void RemoveFile(const char *path) const;
+    esp_err_t RemoveFile(const char *path) const;
     const std::string &BaseDir() const;
 
 private:

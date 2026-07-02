@@ -17,24 +17,28 @@ void VoiceUi::Init() {
     lv_screen_load(screen_);
 }
 
-void VoiceUi::ShowList(const std::vector<MemoMetadata> &memos, uint32_t page, uint8_t battery_percent, bool sd_ready, const char *message) {
+void VoiceUi::ShowList(const std::vector<MemoMetadata> &memos, uint32_t page, uint8_t battery_percent, bool storage_ready, const char *storage_label, const char *message) {
     Clear();
 
     char header[32];
     std::snprintf(header, sizeof(header), "MEMOS %u/%u", static_cast<unsigned>(page + 1),
                   static_cast<unsigned>(CalculatePageCount(memos.size(), kRowsPerPage)));
-    CreateLabel(screen_, 6, 4, 116, 20, header, &lv_font_montserrat_14, LV_TEXT_ALIGN_LEFT);
+    CreateLabel(screen_, 6, 4, 104, 20, header, &lv_font_montserrat_14, LV_TEXT_ALIGN_LEFT);
 
     char status[24];
-    std::snprintf(status, sizeof(status), "%u%%", battery_percent);
-    CreateLabel(screen_, 138, 4, 56, 20, sd_ready ? status : "NO SD", &lv_font_montserrat_14, LV_TEXT_ALIGN_RIGHT);
+    if (storage_ready) {
+        std::snprintf(status, sizeof(status), "%s %u%%", storage_label == nullptr ? "STOR" : storage_label, battery_percent);
+    } else {
+        std::snprintf(status, sizeof(status), "NO STORE");
+    }
+    CreateLabel(screen_, 112, 4, 82, 20, status, &lv_font_montserrat_14, LV_TEXT_ALIGN_RIGHT);
 
     lv_obj_t *line = CreateBox(screen_, 5, 27, 190, 2);
     lv_obj_set_style_bg_color(line, lv_color_black(), LV_PART_MAIN);
 
-    if (!sd_ready) {
-        CreateLabel(screen_, 10, 78, 180, 28, "NO SD CARD", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
-        CreateLabel(screen_, 10, 116, 180, 20, "Insert card to record", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    if (!storage_ready) {
+        CreateLabel(screen_, 10, 78, 180, 28, "NO STORAGE", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+        CreateLabel(screen_, 10, 116, 180, 20, "Storage init failed", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
         return;
     }
 
@@ -59,7 +63,8 @@ void VoiceUi::ShowList(const std::vector<MemoMetadata> &memos, uint32_t page, ui
 
         const MemoMetadata &memo = memos[index];
         char row_text[48];
-        std::snprintf(row_text, sizeof(row_text), "%03u  %s  %s",
+        std::snprintf(row_text, sizeof(row_text), "%c%03u %s %s",
+                      memo.starred ? '*' : ' ',
                       static_cast<unsigned>(memo.sequence),
                       memo.display_time.empty() ? "--:--" : memo.display_time.c_str(),
                       FormatDuration(memo.duration_seconds).c_str());
@@ -79,6 +84,14 @@ void VoiceUi::ShowRecording(uint32_t elapsed_seconds) {
     CreateLabel(screen_, 8, 154, 184, 20, "Release BOOT to save", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
 }
 
+void VoiceUi::ShowSaving(uint8_t frame) {
+    Clear();
+    const char *spinner[] = {"|", "/", "-", "\\"};
+    CreateLabel(screen_, 8, 24, 184, 24, "SAVING", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 74, 184, 34, spinner[frame % 4], &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 132, 184, 24, "Writing memo", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+}
+
 void VoiceUi::ShowDetail(const MemoMetadata &memo, bool playing, uint32_t elapsed_seconds) {
     Clear();
     char title[24];
@@ -89,17 +102,100 @@ void VoiceUi::ShowDetail(const MemoMetadata &memo, bool playing, uint32_t elapse
     std::string duration = playing ? (FormatDuration(elapsed_seconds) + " / " + FormatDuration(memo.duration_seconds))
                                    : ("Duration " + FormatDuration(memo.duration_seconds));
     CreateLabel(screen_, 8, 70, 184, 20, duration.c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
-    CreateLabel(screen_, 8, 98, 184, 18, playing ? "Playing..." : "Ready", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 95, 184, 18, playing ? "Playing..." : "Ready", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *star = CreateBox(screen_, 46, 117, 108, 24);
+    lv_obj_set_style_border_width(star, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(star, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(star, 0, 4, 108, 16, memo.starred ? "UNSTAR" : "STAR", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *left = CreateBox(screen_, 8, 151, 54, 31);
+    lv_obj_set_style_border_width(left, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(left, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(left, 0, 7, 54, 16, playing ? "STOP" : "PLAY", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *middle = CreateBox(screen_, 73, 151, 54, 31);
+    lv_obj_set_style_border_width(middle, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(middle, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(middle, 0, 7, 54, 16, "DEL", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *right = CreateBox(screen_, 138, 151, 54, 31);
+    lv_obj_set_style_border_width(right, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(right, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(right, 0, 7, 54, 16, "BACK", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+}
+
+void VoiceUi::ShowDeleteConfirm(const MemoMetadata &memo) {
+    Clear();
+    char title[24];
+    std::snprintf(title, sizeof(title), "DELETE %03u?", static_cast<unsigned>(memo.sequence));
+    CreateLabel(screen_, 8, 18, 184, 24, title, &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 54, 184, 20, memo.display_time.empty() ? "--:--" : memo.display_time.c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    std::string duration = "Duration " + FormatDuration(memo.duration_seconds);
+    CreateLabel(screen_, 8, 82, 184, 20, duration.c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 112, 184, 18, "This cannot be undone", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
 
     lv_obj_t *left = CreateBox(screen_, 14, 145, 78, 34);
     lv_obj_set_style_border_width(left, 2, LV_PART_MAIN);
     lv_obj_set_style_border_color(left, lv_color_black(), LV_PART_MAIN);
-    CreateLabel(left, 0, 8, 78, 18, playing ? "STOP" : "PLAY", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(left, 0, 8, 78, 18, "DELETE", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
 
     lv_obj_t *right = CreateBox(screen_, 108, 145, 78, 34);
     lv_obj_set_style_border_width(right, 2, LV_PART_MAIN);
     lv_obj_set_style_border_color(right, lv_color_black(), LV_PART_MAIN);
-    CreateLabel(right, 0, 8, 78, 18, "BACK", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(right, 0, 8, 78, 18, "CANCEL", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+}
+
+void VoiceUi::ShowSettings(const VoiceSettings &settings, uint32_t memo_count) {
+    Clear();
+    CreateLabel(screen_, 6, 4, 104, 20, "SETTINGS", &lv_font_montserrat_14, LV_TEXT_ALIGN_LEFT);
+    CreateLabel(screen_, 112, 4, 82, 20, "PWR BACK", &lv_font_montserrat_14, LV_TEXT_ALIGN_RIGHT);
+
+    lv_obj_t *line = CreateBox(screen_, 5, 27, 190, 2);
+    lv_obj_set_style_bg_color(line, lv_color_black(), LV_PART_MAIN);
+
+    constexpr uint8_t kSettingsRows = 5;
+    const char *labels[kSettingsRows] = {
+        "SOUND",
+        "VOLUME",
+        "REC BEEP",
+        "REC MODE",
+        "CLEAR UNSTAR",
+    };
+    char values[kSettingsRows][20] = {};
+    std::snprintf(values[0], sizeof(values[0]), "%s", settings.sfx_enabled ? "ON" : "OFF");
+    std::snprintf(values[1], sizeof(values[1]), "%s", VoiceSettingsVolumeLabel(settings.sfx_volume));
+    std::snprintf(values[2], sizeof(values[2]), "%s", settings.record_start_sfx_enabled ? "ON" : "OFF");
+    std::snprintf(values[3], sizeof(values[3]), "%s", VoiceSettingsRecordModeLabel(settings.record_mode));
+    std::snprintf(values[4], sizeof(values[4]), "%u MEMOS", static_cast<unsigned>(memo_count));
+
+    for (uint8_t row = 0; row < kSettingsRows; ++row) {
+        int32_t y = 32 + row * 31;
+        lv_obj_t *row_box = CreateBox(screen_, 5, y, 190, 27);
+        lv_obj_set_style_border_width(row_box, 1, LV_PART_MAIN);
+        lv_obj_set_style_border_color(row_box, lv_color_black(), LV_PART_MAIN);
+        CreateLabel(row_box, 5, 4, 98, 18, labels[row], &lv_font_montserrat_14, LV_TEXT_ALIGN_LEFT);
+        CreateLabel(row_box, 105, 4, 78, 18, values[row], &lv_font_montserrat_14, LV_TEXT_ALIGN_RIGHT);
+    }
+}
+
+void VoiceUi::ShowClearAllConfirm(uint32_t memo_count) {
+    Clear();
+    CreateLabel(screen_, 8, 18, 184, 24, "DELETE UNSTAR?", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    char count_text[32];
+    std::snprintf(count_text, sizeof(count_text), "%u memos", static_cast<unsigned>(memo_count));
+    CreateLabel(screen_, 8, 58, 184, 20, count_text, &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+    CreateLabel(screen_, 8, 88, 184, 34, "Starred memos stay", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *left = CreateBox(screen_, 14, 145, 78, 34);
+    lv_obj_set_style_border_width(left, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(left, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(left, 0, 8, 78, 18, "DELETE", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t *right = CreateBox(screen_, 108, 145, 78, 34);
+    lv_obj_set_style_border_width(right, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(right, lv_color_black(), LV_PART_MAIN);
+    CreateLabel(right, 0, 8, 78, 18, "CANCEL", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
 }
 
 void VoiceUi::ShowError(const char *message) {
@@ -142,43 +238,6 @@ void VoiceUi::ShowShutdown(uint32_t memo_count, uint8_t battery_percent, const M
     CreateLabel(last, 104, 24, 70, 14, duration.c_str(), &lv_font_montserrat_14, LV_TEXT_ALIGN_RIGHT);
 
     CreateLabel(screen_, 8, 160, 184, 28, "READY FOR\nNEXT MEMO", &lv_font_montserrat_14, LV_TEXT_ALIGN_CENTER);
-}
-
-VoiceUiAction VoiceUi::HitTestTap(uint16_t x, uint16_t y, VoiceAppState state) const {
-    if (state == VoiceAppState::List) {
-        if (y >= 34 && y < 170) {
-            uint8_t row = static_cast<uint8_t>((y - 34) / 34);
-            if (row < kRowsPerPage) {
-                return {VoiceUiActionType::SelectRow, row};
-            }
-        }
-    }
-
-    if (state == VoiceAppState::Detail || state == VoiceAppState::Playing) {
-        if (y >= 140 && y <= 184) {
-            if (x < 100) {
-                return {VoiceUiActionType::PlayStop, 0};
-            }
-            return {VoiceUiActionType::Back, 0};
-        }
-    }
-
-    return {};
-}
-
-VoiceUiAction VoiceUi::HitTestSwipe(uint16_t start_y, uint16_t end_y, VoiceAppState state) const {
-    if (state != VoiceAppState::List) {
-        return {};
-    }
-    constexpr int16_t threshold = 35;
-    int16_t delta = static_cast<int16_t>(end_y) - static_cast<int16_t>(start_y);
-    if (delta <= -threshold) {
-        return {VoiceUiActionType::NextPage, 0};
-    }
-    if (delta >= threshold) {
-        return {VoiceUiActionType::PreviousPage, 0};
-    }
-    return {};
 }
 
 void VoiceUi::Clear() {

@@ -20,11 +20,14 @@ public:
     bool IsRecording() const;
     uint32_t ElapsedSeconds() const;
     uint32_t DataBytes() const;
+    const std::string &Path() const;
 
 private:
     FILE *file_ = nullptr;
     uint8_t *buffer_ = nullptr;
+    uint8_t *pcm_buffer_ = nullptr;
     size_t chunk_size_ = 0;
+    size_t pcm_capacity_ = 0;
     WavFormat format_;
     std::string path_;
     uint32_t data_bytes_ = 0;

@@ -2,6 +2,7 @@
 #define VOICE_UI_H
 
 #include "memo_types.h"
+#include "voice_settings.h"
 
 #include "lvgl.h"
 
@@ -14,13 +15,15 @@ public:
     static constexpr uint8_t kRowsPerPage = 4;
 
     void Init();
-    void ShowList(const std::vector<MemoMetadata> &memos, uint32_t page, uint8_t battery_percent, bool sd_ready, const char *message);
+    void ShowList(const std::vector<MemoMetadata> &memos, uint32_t page, uint8_t battery_percent, bool storage_ready, const char *storage_label, const char *message);
     void ShowRecording(uint32_t elapsed_seconds);
+    void ShowSaving(uint8_t frame);
     void ShowDetail(const MemoMetadata &memo, bool playing, uint32_t elapsed_seconds);
+    void ShowDeleteConfirm(const MemoMetadata &memo);
+    void ShowSettings(const VoiceSettings &settings, uint32_t memo_count);
+    void ShowClearAllConfirm(uint32_t memo_count);
     void ShowError(const char *message);
     void ShowShutdown(uint32_t memo_count, uint8_t battery_percent, const MemoMetadata *last_memo);
-    VoiceUiAction HitTestTap(uint16_t x, uint16_t y, VoiceAppState state) const;
-    VoiceUiAction HitTestSwipe(uint16_t start_y, uint16_t end_y, VoiceAppState state) const;
 
 private:
     void Clear();
